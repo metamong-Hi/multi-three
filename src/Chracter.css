@@ -1,0 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;300;400;500;700;900&display=swap');
+ .character-name > div {
+ background-color: rgba(0,0,0,0.5);
+ color: white;
+ border-radius: 20px;
+ user-select: none;
+ white-space:nowrap;
+ padding:5px 10px;
+ }

@@ -2,12 +2,12 @@ import { useState } from 'react'
 import './App.css'
 import Experience from './Experience'
 import {Canvas} from "@react-three/fiber"
-import { KeyboardControls } from '@react-three/drei'
+import { KeyboardControls, Loader } from '@react-three/drei'
 
 
 function App() {
   const [count, setCount] = useState(0)
-
+  const [loaded,setLoaded] = useState(false);
   return (
     <>
     <KeyboardControls map={[
@@ -23,6 +23,12 @@ function App() {
       <Experience/>
      </Canvas>
      </KeyboardControls>
+     <Loader dataInterpolation={(v)=>{
+      if(v>=100){
+        setLoaded(true);
+        return parseInt(v)+"% 다운로드 중입니다"
+      }
+     }}/>
     </>
   )
 }
