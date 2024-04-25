@@ -6,6 +6,21 @@ Command: npx gltfjsx@6.2.16 ./public/charater1.glb -o ./src/Character.jsx
 import React, { useEffect, useRef } from 'react'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import {useControls}from "leva"
+import { RigidBody, CapsuleCollider } from '@react-three/rapier'
+
+const CHARACTER_HEIGH=1.79;
+const CAPSULE_RADIUS=0.3;
+
+function ApplyShadow({refTarget}){
+  useEffect(()=>{
+    refTarget.current?.traverse((obj)=>{
+      if(obj.isMesh){
+        obj.castShadow=true;
+        obj.receiveShadow=true;
+      }
+    })
+  },[])
+}
 export function Character(props) {
   const group = useRef()
   const { nodes, materials, animations } = useGLTF('/charater1.glb')
@@ -30,7 +45,10 @@ export function Character(props) {
   },[animationName])
 
   return (
-    <group ref={group} {...props} dispose={null}>
+    <>
+    <RigidBody colliders={false} position={[0,2,0]}>
+      <CapsuleCollider args={[CHARACTER_HEIGH/2-CAPSULE_RADIUS,CAPSULE_RADIUS]}/>
+    <group ref={group} {...props} dispose={null} position-y={-CHARACTER_HEIGH/2}>
       <group name="Scene">
         <group name="charater" rotation={[Math.PI / 2, 0, 0]} scale={0.01}>
           <primitive object={nodes.mixamorig8Hips} />
@@ -44,6 +62,9 @@ export function Character(props) {
         </group>
       </group>
     </group>
+    </RigidBody>
+    <ApplyShadow refTarget={group}/>
+    </>
   )
 }
 

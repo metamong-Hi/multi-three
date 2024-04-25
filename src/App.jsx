@@ -8,7 +8,7 @@ function App() {
 
   return (
     <>
-     <Canvas>
+     <Canvas shadows>
       <Experience/>
      </Canvas>
     </>
