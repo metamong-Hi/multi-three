@@ -27,7 +27,7 @@ function ApplyShadow({refTarget}){
   },[])
 }
 
-function UpdateFrame({actions,refModel,refRigid}){
+function UpdateFrame({actions,refModel,refRigid, refOrbitControls}){
   const [/*subscribeKeys*/, getKeys]=useKeyboardControls();
   const refPlayingActionName=useRef();
   const refSpeed=useRef();
@@ -106,12 +106,20 @@ function UpdateFrame({actions,refModel,refRigid}){
       const cz=refRigid.current.translation().z+dz;
       console.log("여기임"+cx,cy,cz)
       refRigid.current.setTranslation({x:cx,y:cy,z:cz});
+          //카메라가 항상 캐릭터를 바라보도록 변경
+    camera.position.x+=dx;
+    camera.position.z+=dz;
+    if(refOrbitControls.current){
+      refOrbitControls.current.target.set(cx,cy,cz);
     }
+    }
+    
 
   });
 }
 
-export function Character(props) {
+// export function Character(props) {
+export function Character({refOrbitControls, ...props}){
   const group = useRef();
   const refRigid=useRef();
   const { nodes, materials, animations } = useGLTF('/charater1.glb')
@@ -154,7 +162,7 @@ export function Character(props) {
     </group>
     </RigidBody>
     <ApplyShadow refTarget={group}/>
-    <UpdateFrame actions={actions} refModel={group} refRigid={refRigid}/>
+    <UpdateFrame actions={actions} refModel={group} refRigid={refRigid} refOrbitControls={refOrbitControls}/>
     </>
   )
 }
