@@ -4,10 +4,12 @@ Command: npx gltfjsx@6.2.16 ./public/charater1.glb -o ./src/Character.jsx
 */
 
 import React, { useEffect, useRef } from 'react'
-import { useGLTF, useAnimations } from '@react-three/drei'
+import { useGLTF, useAnimations, useKeyboardControls } from '@react-three/drei'
 import {useControls}from "leva"
 import { RigidBody, CapsuleCollider } from '@react-three/rapier'
+import { useFrame } from '@react-three/fiber';
 
+import * as THREE from "three";
 const CHARACTER_HEIGH=1.79;
 const CAPSULE_RADIUS=0.3;
 
@@ -21,11 +23,51 @@ function ApplyShadow({refTarget}){
     })
   },[])
 }
+
+function UpdateFrame({actions,refModel}){
+  const [/*subscribeKeys*/, getKeys]=useKeyboardControls();
+  const refPlayingActionName=useRef();
+  const playAction=(actionName)=>{
+      if(refPlayingActionName.current === actionName) return ;
+      const action=actions[actionName];
+      const prevAction=actions[refPlayingActionName.current];
+      action.reset().fadeIn(0.5).play();
+      prevAction?.fadeOut(0.5);
+      refPlayingActionName.current=actionName;
+
+  }
+  useFrame((state,delta)=>{
+    const keys=getKeys();
+    if(keys.forward || keys.leftward || keys.rightward || keys.backward){
+      if(keys.walk){
+          playAction("walk");
+      }
+      else{
+        playAction("run");
+      }
+    }
+    else{
+      playAction("Armature|mixamo.com|Layer0");
+    }
+    const camera=state.camera;
+    const model=refModel.current;
+    const modelPosition=new THREE.Vector3();
+    model.getWorldPosition(modelPosition);
+    const angleCameraDirectionAxisY=Math.atan2(
+      camera.position.x-modelPosition.x,
+      camera.position.z-modelPosition.z
+    )+Math.PI;
+    const rotateQuarternion=new THREE.Quaternion();
+    rotateQuarternion.setFromAxisAngle(new THREE.Vector3(0,1,0),
+    angleCameraDirectionAxisY);
+    model.quaternion.rotateTowards(rotateQuarternion,THREE.MathUtils.degToRad(1));
+  });
+}
+
 export function Character(props) {
   const group = useRef()
   const { nodes, materials, animations } = useGLTF('/charater1.glb')
   const { actions } = useAnimations(animations, group)
-
    //GUI에 애니메이션 이름 표시 (4월 25일 추가함)
   const animationNames=Object.keys(actions);
   const {animationName}=useControls({
@@ -64,6 +106,7 @@ export function Character(props) {
     </group>
     </RigidBody>
     <ApplyShadow refTarget={group}/>
+    <UpdateFrame actions={actions} refModel={group}/>
     </>
   )
 }
