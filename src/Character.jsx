@@ -8,10 +8,13 @@ import { useGLTF, useAnimations, useKeyboardControls } from '@react-three/drei'
 import {useControls}from "leva"
 import { RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { useFrame } from '@react-three/fiber';
-
+import { useCallback } from 'react';
 import * as THREE from "three";
 const CHARACTER_HEIGH=1.79;
 const CAPSULE_RADIUS=0.3;
+
+const WALK_SPEED=1;
+const RUN_SPEED=2;
 
 function ApplyShadow({refTarget}){
   useEffect(()=>{
@@ -24,9 +27,10 @@ function ApplyShadow({refTarget}){
   },[])
 }
 
-function UpdateFrame({actions,refModel}){
+function UpdateFrame({actions,refModel,refRigid}){
   const [/*subscribeKeys*/, getKeys]=useKeyboardControls();
   const refPlayingActionName=useRef();
+  const refSpeed=useRef();
   const playAction=(actionName)=>{
       if(refPlayingActionName.current === actionName) return ;
       const action=actions[actionName];
@@ -36,18 +40,45 @@ function UpdateFrame({actions,refModel}){
       refPlayingActionName.current=actionName;
 
   }
+  const getDirectionOffset = useCallback((keys) => {
+    let directionOffset = 0; // w
+    if (keys.forward) {
+    if (keys.leftward) {
+    directionOffset = Math.PI / 4 // w+a (45)
+    } else if (keys.rightward) {
+    directionOffset =-Math.PI / 4 // w+d (-45)
+    }
+    } else if (keys.backward) {
+    if (keys.leftward) {
+    directionOffset = Math.PI / 4 + Math.PI / 2 // s+a (135)
+    } else if (keys.rightward) {
+    directionOffset =-Math.PI / 4- Math.PI / 2 // s+d (-135)
+    } else {
+    directionOffset = Math.PI // s (180)
+    }
+    } else if (keys.leftward) {
+    directionOffset = Math.PI / 2 // a (90)
+    } else if (keys.rightward) {
+    directionOffset =-Math.PI / 2 // d (-90)
+    }
+    return directionOffset
+  },[])
+
   useFrame((state,delta)=>{
     const keys=getKeys();
     if(keys.forward || keys.leftward || keys.rightward || keys.backward){
       if(keys.walk){
           playAction("walk");
+          refSpeed.current=WALK_SPEED;
       }
       else{
         playAction("run");
+        refSpeed.current=RUN_SPEED;
       }
     }
     else{
       playAction("Armature|mixamo.com|Layer0");
+      refSpeed.current=0;
     }
     const camera=state.camera;
     const model=refModel.current;
@@ -56,16 +87,33 @@ function UpdateFrame({actions,refModel}){
     const angleCameraDirectionAxisY=Math.atan2(
       camera.position.x-modelPosition.x,
       camera.position.z-modelPosition.z
-    )+Math.PI;
+    )+Math.PI; 
     const rotateQuarternion=new THREE.Quaternion();
     rotateQuarternion.setFromAxisAngle(new THREE.Vector3(0,1,0),
-    angleCameraDirectionAxisY);
-    model.quaternion.rotateTowards(rotateQuarternion,THREE.MathUtils.degToRad(1));
+    angleCameraDirectionAxisY+getDirectionOffset(keys));//눌러진 키 방향으로 바라보게 변경 
+    model.quaternion.rotateTowards(rotateQuarternion,THREE.MathUtils.degToRad(5));
+    //캐릭터 위치 이동
+    const walkDirection=new THREE.Vector3();
+    camera.getWorldDirection(walkDirection);
+    walkDirection.y=0;
+    walkDirection.normalize();
+    walkDirection.applyAxisAngle(new THREE.Vector3(0,1,0),getDirectionOffset(keys));
+    const dx=walkDirection.x * refSpeed.current * delta;
+    const dz=walkDirection.z * refSpeed.current * delta;
+    if(refRigid.current){
+      const cx=refRigid.current.translation().x+dx;
+      const cy=refRigid.current.translation().y;
+      const cz=refRigid.current.translation().z+dz;
+      console.log("여기임"+cx,cy,cz)
+      refRigid.current.setTranslation({x:cx,y:cy,z:cz});
+    }
+
   });
 }
 
 export function Character(props) {
-  const group = useRef()
+  const group = useRef();
+  const refRigid=useRef();
   const { nodes, materials, animations } = useGLTF('/charater1.glb')
   const { actions } = useAnimations(animations, group)
    //GUI에 애니메이션 이름 표시 (4월 25일 추가함)
@@ -88,7 +136,7 @@ export function Character(props) {
 
   return (
     <>
-    <RigidBody colliders={false} position={[0,2,0]}>
+    <RigidBody lockRotations ref={refRigid} colliders={false} position={[0,2,0]}>
       <CapsuleCollider args={[CHARACTER_HEIGH/2-CAPSULE_RADIUS,CAPSULE_RADIUS]}/>
     <group ref={group} {...props} dispose={null} position-y={-CHARACTER_HEIGH/2}>
       <group name="Scene">
@@ -106,7 +154,7 @@ export function Character(props) {
     </group>
     </RigidBody>
     <ApplyShadow refTarget={group}/>
-    <UpdateFrame actions={actions} refModel={group}/>
+    <UpdateFrame actions={actions} refModel={group} refRigid={refRigid}/>
     </>
   )
 }
